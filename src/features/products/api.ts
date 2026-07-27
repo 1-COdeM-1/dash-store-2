@@ -1,206 +1,69 @@
 import type { Product, ProductFilters, ProductInsert, ProductListResult, ProductUpdate } from '@/types/product';
-import { supabase } from '@/lib/supabase';
 import { deleteFromR2, deleteR2Folder, parseR2KeyFromUrl, uploadToR2 } from '@/lib/r2';
-import type { Database } from '@/types/database';
 import imageCompression from 'browser-image-compression';
 
-type ProductRow = Database['public']['Tables']['Products']['Row'];
-
-function toNumber(value: string | number): number {
-  return typeof value === 'number' ? value : Number(value);
-}
-
-export function mapProduct(row: ProductRow): Product {
-  return {
-    id: row.id,
-    createdAt: row.createdAt,
-    title: row.title,
-    titleAr: row.titleAr,
-    description: row.description,
-    descriptionAr: row.descriptionAr,
-    price: toNumber(row.price),
-    discount: toNumber(row.discount),
-    category: row.category,
-    categoryAr: row.categoryAr,
-    featured: row.featured,
-    whatsNumber: row.whatsNumber,
-    rating: toNumber(row.rating),
-    reviews: toNumber(row.reviews),
-    inStock: row.inStock,
-    tags: row.tags ?? [],
-    images: row.images ?? [],
-  };
-}
-
 export async function fetchProducts(filters: ProductFilters = {}): Promise<ProductListResult> {
-  const {
-    search = '',
-    category,
-    inStock = null,
-    featured = null,
-    sortBy = 'createdAt',
-    sortOrder = 'desc',
-    page = 1,
-    pageSize = 10,
-  } = filters;
+  const { page = 1, pageSize = 10 } = filters;
+  
+  // TODO: Implement fetching products from Cloudflare Worker
+  console.log('Fetching products with filters:', filters);
 
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  let query = supabase.from('Products').select('*', { count: 'exact' });
-
-  if (search.trim()) {
-    const term = `%${search.trim()}%`;
-    query = query.or(`title.ilike."${term}",titleAr.ilike."${term}"`);
-  }
-
-  if (category) {
-    query = query.eq('category', category);
-  }
-
-  if (inStock !== null && inStock !== undefined) {
-    query = query.eq('inStock', inStock);
-  }
-
-  if (featured !== null && featured !== undefined) {
-    query = query.eq('featured', featured);
-  }
-
-  query = query.order(sortBy, { ascending: sortOrder === 'asc' }).range(from, to);
-
-  const { data, error, count } = await query;
-  if (error) throw error;
-
-  const total = count ?? 0;
   return {
-    data: (data ?? []).map(mapProduct),
-    count: total,
+    data: [],
+    count: 0,
     page,
     pageSize,
-    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    totalPages: 1,
   };
 }
 
 export async function fetchProductById(id: number): Promise<Product> {
-  const { data, error } = await supabase.from('Products').select('*').eq('id', id).single();
-  if (error) throw error;
-  return mapProduct(data);
+  // TODO: Implement fetching product by id from Cloudflare Worker
+  console.log('Fetching product by id:', id);
+  return {} as Product; 
 }
 
 export async function fetchCategories(): Promise<{ en: string; ar: string }[]> {
-  const { data, error } = await supabase.from('Products').select('category, categoryAr');
-  if (error) throw error;
-
-  const map = new Map<string, { en: string; ar: string }>();
-  for (const row of data ?? []) {
-    if (row.category && !map.has(row.category)) {
-      map.set(row.category, { en: row.category, ar: row.categoryAr });
-    }
-  }
-  return Array.from(map.values()).sort((a, b) => a.en.localeCompare(b.en));
+  // TODO: Implement fetching categories from Cloudflare Worker
+  return [];
 }
 
 export async function fetchOverviewStats() {
-  const { data, error } = await supabase.from('Products').select('*');
-  if (error) throw error;
-
-  const products = (data ?? []).map(mapProduct);
-  const inStock = products.filter((p) => p.inStock).length;
-  const featured = products.filter((p) => p.featured).length;
-  const avgRating =
-    products.length === 0
-      ? 0
-      : Math.round((products.reduce((sum, p) => sum + p.rating, 0) / products.length) * 10) / 10;
-  const totalReviews = products.reduce((sum, p) => sum + p.reviews, 0);
-
-  const byCategory = Object.entries(
-    products.reduce<Record<string, number>>((acc, p) => {
-      acc[p.category] = (acc[p.category] ?? 0) + 1;
-      return acc;
-    }, {}),
-  ).map(([name, value]) => ({ name, value }));
-
-  const recent = [...products]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
-
+  // TODO: Implement fetching overview stats from Cloudflare Worker
   return {
-    total: products.length,
-    inStock,
-    outOfStock: products.length - inStock,
-    featured,
-    avgRating,
-    totalReviews,
-    byCategory,
-    recent,
+    total: 0,
+    inStock: 0,
+    outOfStock: 0,
+    featured: 0,
+    avgRating: 0,
+    totalReviews: 0,
+    byCategory: [],
+    recent: [],
   };
 }
 
 export async function duplicateProduct(product: Product): Promise<Product> {
-  // 1. Create the new DB record first (no images yet) to get the real ID
-  const payload: ProductInsert = {
-    title: product.title,
-    titleAr: product.titleAr,
-    description: product.description,
-    descriptionAr: product.descriptionAr,
-    price: product.price,
-    discount: product.discount,
-    category: product.category,
-    categoryAr: product.categoryAr,
-    featured: product.featured,
-    whatsNumber: product.whatsNumber,
-    rating: product.rating,
-    reviews: product.reviews,
-    inStock: product.inStock,
-    tags: product.tags,
-    images: [],
-  };
-  const newProduct = await createProduct(payload);
-
-  // 2. Copy each image into the new product's own R2 folder
-  if (product.images.length > 0) {
-    const copiedUrls = await copyImagesToFolder(product.images, String(newProduct.id));
-    await updateProduct(newProduct.id, { images: copiedUrls });
-    return { ...newProduct, images: copiedUrls };
-  }
-
-  return newProduct;
+  // TODO: Implement duplicating product
+  console.log('Duplicating product:', product);
+  return product;
 }
 
 export async function createProduct(payload: ProductInsert): Promise<Product> {
-  const { data, error } = await supabase
-    .from('Products')
-    .insert({
-      ...payload,
-      price: payload.price,
-      discount: payload.discount,
-      rating: payload.rating,
-      reviews: payload.reviews,
-    })
-    .select('*')
-    .single();
-
-  if (error) throw error;
-  return mapProduct(data);
+  // TODO: Implement creating product via Cloudflare Worker
+  console.log('Creating product:', payload);
+  return { ...payload, id: Date.now(), createdAt: new Date().toISOString() } as Product;
 }
 
 export async function updateProduct(id: number, payload: ProductUpdate): Promise<Product> {
-  const { data, error } = await supabase
-    .from('Products')
-    .update(payload)
-    .eq('id', id)
-    .select('*')
-    .single();
-
-  if (error) throw error;
-  return mapProduct(data);
+  // TODO: Implement updating product via Cloudflare Worker
+  console.log('Updating product:', id, payload);
+  return { id, ...payload } as Product;
 }
 
 export async function deleteProduct(id: number): Promise<void> {
-  // Delete all images in the product's R2 folder, then remove the DB record
+  // TODO: Implement deleting product via Cloudflare Worker
+  console.log('Deleting product:', id);
   await deleteProductFolder(String(id));
-  const { error } = await supabase.from('Products').delete().eq('id', id);
-  if (error) throw error;
 }
 
 /**

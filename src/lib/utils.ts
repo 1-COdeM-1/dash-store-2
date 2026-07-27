@@ -28,7 +28,6 @@ export function computeDiscountPercent(originalPrice: number, salePrice: number)
 }
 
 export function parseStoragePathFromUrl(_url: string): string | null {
-  // Supabase Storage removed — this function is no longer used.
-  // R2 URL parsing is handled by parseR2KeyFromUrl in @/lib/r2.
+  // Storage logic is handled elsewhere
   return null;
 }

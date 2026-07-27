@@ -4,7 +4,6 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue?style=for-the-badge&logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-8.1.1-purple?style=for-the-badge&logo=vite)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3.3-38B2AC?style=for-the-badge&logo=tailwind-css)
-![Supabase](https://img.shields.io/badge/Supabase-Backend-green?style=for-the-badge&logo=supabase)
 
 A premium, high-performance Admin Dashboard built to manage products and operations for the Food Store E-commerce application. It provides a powerful interface for product management, secure authentication, and real-time analytics.
 
@@ -14,9 +13,9 @@ A premium, high-performance Admin Dashboard built to manage products and operati
 
 ## ✨ Key Features
 
-- **🔐 Secure Authentication**: Email and password-based admin login powered by Supabase Auth.
+- **🔐 Secure Authentication**: Email and password-based admin login.
 - **📦 Comprehensive Product Management (CRUD)**: Create, read, update, and delete products easily.
-- **🖼️ Direct Image Uploads**: Seamlessly upload and manage product images directly to Supabase Storage.
+- **🖼️ Direct Image Uploads**: Seamlessly upload and manage product images via Cloudflare R2 Storage.
 - **📊 Analytics Overview**: Visual data representation using Recharts for quick business insights.
 - **🌓 Dynamic Theming**: Full support for system, light, and dark mode themes.
 - **🌍 Bilingual & RTL Support**: Fully localized in both **Arabic (Default, RTL)** and **English (LTR)**.
@@ -32,7 +31,7 @@ A premium, high-performance Admin Dashboard built to manage products and operati
 - **Charts**: [Recharts](https://recharts.org/)
 - **Routing**: [React Router](https://reactrouter.com/)
 - **Localization**: [react-i18next](https://react.i18next.com/)
-- **Database / Backend**: [Supabase](https://supabase.com/)
+- **Database / Backend**: Cloudflare Workers + D1 + Hono
 
 ## 🚀 Getting Started
 
@@ -55,16 +54,9 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
    ```
 
 3. **Set up Environment Variables:**
-   Rename `.env.example` to `.env` in the root directory and add your Supabase credentials:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
+   Rename `.env.example` to `.env` in the root directory and configure necessary environment variables.
 
-4. **Storage Bucket Configuration:**
-   Ensure you have a Supabase Storage bucket named `products IMAGES`. If image uploads fail due to Row Level Security (RLS), run the SQL commands found in `supabase/storage-policies.sql` inside your Supabase SQL Editor.
-
-5. **Start the development server:**
+4. **Start the development server:**
    ```bash
    npm run dev
    ```
@@ -78,7 +70,7 @@ src/
 ├── components/       # Reusable UI components (buttons, cards, modals, layout)
 ├── features/         # Feature-based modules (auth, products, theme, toast)
 ├── i18n/             # Localization configuration and translation files (ar, en)
-├── lib/              # Utility libraries (Supabase client, schemas, helpers)
+├── lib/              # Utility libraries (schemas, helpers, r2 integrations)
 ├── pages/            # Main application pages (Dashboard, Products, Login, etc.)
 └── types/            # TypeScript type definitions
 ```
@@ -91,5 +83,5 @@ It includes a `vercel.json` file which handles Single Page Application (SPA) rou
 To deploy your own instance:
 1. Push your code to GitHub.
 2. Import the repository into Vercel.
-3. Configure the `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel's Environment Variables settings.
+3. Configure the environment variables in Vercel's Environment Variables settings.
 4. Deploy!
