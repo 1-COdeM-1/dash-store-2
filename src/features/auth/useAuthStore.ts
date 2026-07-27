@@ -21,6 +21,8 @@ interface AuthState {
   setSession: (session: Session | null) => void;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
+
 export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   user: null,
@@ -32,8 +34,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   initialize: async () => {
-    // TODO: Connect to Cloudflare Auth endpoint
-    // For now, assume no active session
+    const savedSession = localStorage.getItem('auth_session');
+    if (savedSession) {
+      try {
+        const session = JSON.parse(savedSession);
+        set({ session, user: session.user, initialized: true });
+        return;
+      } catch {
+        // ignore
+      }
+    }
     set({
       session: null,
       user: null,
@@ -43,23 +53,36 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signIn: async (email, password) => {
     set({ loading: true });
-    // TODO: Connect to Cloudflare Auth endpoint
-    // Dummy implementation for now to allow local testing
-    console.log('Dummy login:', email, password);
-    const mockUser: User = { id: 'dummy-id', email };
-    const mockSession: Session = { access_token: 'dummy-token', user: mockUser };
-    
-    set({ 
-      loading: false,
-      session: mockSession,
-      user: mockUser
-    });
-    return { error: null };
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        set({ loading: false });
+        return { error: data.error || 'Login failed' };
+      }
+
+      localStorage.setItem('auth_session', JSON.stringify(data.session));
+      set({ 
+        loading: false,
+        session: data.session,
+        user: data.session.user
+      });
+      return { error: null };
+    } catch (err: any) {
+      set({ loading: false });
+      return { error: err.message };
+    }
   },
 
   signOut: async () => {
     set({ loading: true });
-    // TODO: Connect to Cloudflare Auth endpoint
+    localStorage.removeItem('auth_session');
     set({ session: null, user: null, loading: false });
   },
 }));
