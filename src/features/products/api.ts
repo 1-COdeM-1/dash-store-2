@@ -101,9 +101,10 @@ export async function fetchOverviewStats() {
 }
 
 export async function duplicateProduct(product: Product): Promise<Product> {
-  const payload: ProductInsert = {
-    title: product.title + ' (Copy)',
-    titleAr: product.titleAr + ' (نسخة)',
+  // Create the new DB record first (no images yet) to get a real ID
+  const newProduct = await createProduct({
+    title: product.title,
+    titleAr: product.titleAr,
     description: product.description,
     descriptionAr: product.descriptionAr,
     price: product.price,
@@ -116,9 +117,29 @@ export async function duplicateProduct(product: Product): Promise<Product> {
     reviews: product.reviews,
     inStock: product.inStock,
     tags: product.tags,
-    images: product.images, // Note: For a true copy we should physically copy images, but referencing them is fine for now
-  };
-  return createProduct(payload);
+    images: [],
+  });
+
+  // Physically copy each image into the new product's own folder
+  const copiedUrls: string[] = [];
+  for (const url of product.images) {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const ext = url.split('.').pop()?.split('?')[0] ?? 'jpg';
+      const file = new File([blob], `image.${ext}`, { type: blob.type });
+      const newUrl = await uploadProductImage(file, String(newProduct.id));
+      copiedUrls.push(newUrl);
+    } catch {
+      // If a single image copy fails, skip it
+    }
+  }
+
+  // Update the new product record with the copied image URLs
+  if (copiedUrls.length > 0) {
+    return updateProduct(newProduct.id, { images: copiedUrls });
+  }
+  return newProduct;
 }
 
 export async function createProduct(payload: ProductInsert): Promise<Product> {
@@ -220,15 +241,33 @@ export async function uploadProductImage(file: File, productKey: string): Promis
   return data.url;
 }
 
+/**
+ * Delete individual image files from R2 by their public URLs.
+ * Used when editing a product and swapping one image for another.
+ */
 export async function deleteImagesFromStorage(urls: string[]): Promise<void> {
   for (const url of urls) {
-    const key = url.split('/').slice(3).join('/'); // basic parse key
+    // Extract R2 key from the public URL, e.g.
+    // https://pub-xxx.r2.dev/products/42/uuid.jpg -> products/42/uuid.jpg
+    const key = url.split('/').slice(3).join('/');
     if (!key) continue;
 
     await fetch(`${API_URL}/api/images/delete`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ key })
+      body: JSON.stringify({ key }),
     });
   }
+}
+
+/**
+ * Delete the entire R2 folder for a product: products/{productId}/
+ * Used when a product is permanently deleted.
+ */
+export async function deleteFolderFromStorage(productId: number): Promise<void> {
+  await fetch(`${API_URL}/api/images/delete-folder`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ productId }),
+  });
 }

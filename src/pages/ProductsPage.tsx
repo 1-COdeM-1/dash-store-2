@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PackagePlus, Search } from 'lucide-react';
 import { useCategories, useProducts } from '@/features/products/useProducts';
-import { deleteProduct, updateProduct, duplicateProduct } from '@/features/products/api';
+import { deleteProduct, updateProduct, duplicateProduct, deleteFolderFromStorage } from '@/features/products/api';
+
 import { useToast } from '@/features/toast/useToast';
 import type { Product } from '@/types/product';
 import { ProductTable } from '@/components/products/ProductTable';
@@ -89,6 +90,7 @@ export function ProductsPage() {
     try {
       const selected = products.filter((p) => selectedIds.includes(p.id));
       for (const product of selected) {
+        await deleteFolderFromStorage(product.id);
         await deleteProduct(product.id);
       }
       setSelectedIds([]);
@@ -100,6 +102,7 @@ export function ProductsPage() {
       setBulkDeleting(false);
     }
   };
+
 
   const bulkToggleStock = async () => {
     try {

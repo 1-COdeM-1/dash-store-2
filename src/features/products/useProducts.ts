@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import type { Product, ProductFilters, ProductListResult } from '@/types/product';
 import {
   deleteProduct,
+  deleteFolderFromStorage,
   fetchCategories,
   fetchProductById,
   fetchProducts,
   updateProduct,
 } from './api';
+
 
 export function useProducts(initial?: ProductFilters) {
   const [filters, setFilters] = useState<ProductFilters>({
@@ -74,9 +76,12 @@ export function useProducts(initial?: ProductFilters) {
   };
 
   const remove = async (product: Product) => {
+    // Delete R2 folder first (backend also does this, but belt-and-suspenders)
+    await deleteFolderFromStorage(product.id);
     await deleteProduct(product.id);
     reload();
   };
+
 
   const toggleStock = async (product: Product) => {
     await updateProduct(product.id, { inStock: !product.inStock });
