@@ -26,6 +26,7 @@ export function ProductDetailPage() {
   const [duplicating, setDuplicating] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [selectedSizeIndex, setSelectedSizeIndex] = useState(0);
 
   const allImages = product?.images ?? [];
   const activeImage = allImages[activeIndex] ?? '';
@@ -70,7 +71,14 @@ export function ProductDetailPage() {
     );
   }
 
-  const finalPrice = computeFinalPrice(product.price, product.discount);
+  const activeSizes = product.sizes && product.sizes.length > 0 ? product.sizes : null;
+  const currentSize = activeSizes ? (activeSizes[selectedSizeIndex] || activeSizes[0]) : null;
+
+  const originalPrice = currentSize ? Number(currentSize.originalPrice) : product.price;
+  const finalPrice = currentSize ? Number(currentSize.salePrice) : computeFinalPrice(product.price, product.discount);
+  const displayDiscount = currentSize && originalPrice > finalPrice
+    ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+    : product.discount;
 
   const handleDuplicate = async () => {
     if (!product) return;
@@ -247,16 +255,45 @@ export function ProductDetailPage() {
             <Badge variant="muted">{product.category}</Badge>
           </div>
 
+          {/* Size Selection Buttons */}
+          {activeSizes && activeSizes.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <p className="text-sm font-medium text-foreground">
+                {i18n.language === 'ar' ? 'الأحجام / الخيارات:' : 'Sizes / Options:'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {activeSizes.map((size, idx) => {
+                  const isSelected = selectedSizeIndex === idx;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedSizeIndex(idx)}
+                      className={[
+                        'px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 border shadow-sm',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground border-primary shadow-md scale-[1.03]'
+                          : 'bg-background hover:bg-muted text-foreground border-border',
+                      ].join(' ')}
+                    >
+                      {size.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div>
             <p className="text-3xl font-semibold">
               {formatCurrency(finalPrice, i18n.language)}
             </p>
-            {product.discount > 0 ? (
+            {displayDiscount > 0 ? (
               <p className="text-sm text-muted-foreground">
                 <span className="line-through">
-                  {formatCurrency(product.price, i18n.language)}
+                  {formatCurrency(originalPrice, i18n.language)}
                 </span>{' '}
-                · {t('products.discountOff', { value: product.discount })}
+                · {t('products.discountOff', { value: displayDiscount })}
               </p>
             ) : null}
           </div>

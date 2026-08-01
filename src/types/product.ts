@@ -1,3 +1,9 @@
+export interface ProductSize {
+  name: string;
+  originalPrice: number;
+  salePrice: number;
+}
+
 export interface Product {
   id: number;
   createdAt: string;
@@ -16,6 +22,7 @@ export interface Product {
   inStock: boolean;
   tags: string[];
   images: string[];
+  sizes?: ProductSize[];
 }
 
 export type ProductInsert = Omit<Product, 'id' | 'createdAt'>;

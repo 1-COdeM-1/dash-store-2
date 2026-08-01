@@ -29,6 +29,13 @@ export const productSchema = z
     inStock: z.boolean(),
     tags: z.array(z.string().min(1)).min(1),
     images: z.array(z.url()),
+    sizes: z.array(
+      z.object({
+        name: z.string().min(1),
+        originalPrice: z.number().min(0),
+        salePrice: z.number().min(0),
+      })
+    ),
   })
   .refine((data) => data.originalPrice >= data.price, {
     path: ['originalPrice'],

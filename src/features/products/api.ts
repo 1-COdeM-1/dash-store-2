@@ -31,6 +31,7 @@ function mapProduct(row: any): Product {
     inStock: row.in_stock === 1,
     tags: row.tags || [],
     images: row.images || [],
+    sizes: row.sizes || [],
   };
 }
 
@@ -118,6 +119,7 @@ export async function duplicateProduct(product: Product): Promise<Product> {
     inStock: product.inStock,
     tags: product.tags,
     images: [],
+    sizes: product.sizes || [],
   });
 
   // Physically copy each image into the new product's own folder
@@ -161,7 +163,8 @@ export async function createProduct(payload: ProductInsert): Promise<Product> {
       reviews: payload.reviews,
       in_stock: payload.inStock,
       tags: payload.tags,
-      images: payload.images
+      images: payload.images,
+      sizes: payload.sizes || []
     }),
   });
   if (!res.ok) throw new Error('Failed to create product');
@@ -188,7 +191,8 @@ export async function updateProduct(id: number, payload: ProductUpdate): Promise
       reviews: payload.reviews,
       in_stock: payload.inStock,
       tags: payload.tags,
-      images: payload.images
+      images: payload.images,
+      sizes: payload.sizes
     }),
   });
   if (!res.ok) throw new Error('Failed to update product');

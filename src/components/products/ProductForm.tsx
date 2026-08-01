@@ -11,6 +11,7 @@ import { TagInput } from '@/components/ui/TagInput';
 import { ImageDropzone } from '@/components/ui/ImageDropzone';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -38,6 +39,14 @@ export function ProductForm({
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [customCategory, setCustomCategory] = useState(false);
+  const [sizeModalOpen, setSizeModalOpen] = useState(false);
+  const [editingSizeIndex, setEditingSizeIndex] = useState<number | null>(null);
+  const [sizeForm, setSizeForm] = useState<{ name: string; originalPrice: number | string; salePrice: number | string }>({
+    name: '',
+    originalPrice: '',
+    salePrice: '',
+  });
+  const [sizeError, setSizeError] = useState<string | null>(null);
   const {
     register,
     control,
@@ -59,6 +68,54 @@ export function ProductForm({
     ...categories.map((c) => ({ value: c.en, label: c.en })),
     { value: '__new__', label: t('products.addCategory') },
   ];
+
+  const openAddSizeModal = () => {
+    setEditingSizeIndex(null);
+    setSizeForm({ name: '', originalPrice: '', salePrice: '' });
+    setSizeError(null);
+    setSizeModalOpen(true);
+  };
+
+  const openEditSizeModal = (index: number) => {
+    const sizes = watch('sizes') || [];
+    const item = sizes[index];
+    if (!item) return;
+    setEditingSizeIndex(index);
+    setSizeForm({ name: item.name, originalPrice: item.originalPrice, salePrice: item.salePrice });
+    setSizeError(null);
+    setSizeModalOpen(true);
+  };
+
+  const handleSaveSize = () => {
+    const name = sizeForm.name.trim();
+    const original = Number(sizeForm.originalPrice);
+    const sale = Number(sizeForm.salePrice);
+
+    if (!name) {
+      setSizeError(i18n.language === 'ar' ? 'يرجى إدخال اسم الحجم' : 'Please enter a size name');
+      return;
+    }
+    if (isNaN(original) || original < 0 || isNaN(sale) || sale < 0) {
+      setSizeError(i18n.language === 'ar' ? 'يرجى إدخال أرقام أسعار صحيحة' : 'Please enter valid positive prices');
+      return;
+    }
+
+    const currentSizes = [...(watch('sizes') || [])];
+    const newSizeItem = { name, originalPrice: original, salePrice: sale };
+
+    if (editingSizeIndex !== null) {
+      currentSizes[editingSizeIndex] = newSizeItem;
+    } else {
+      currentSizes.push(newSizeItem);
+    }
+    setValue('sizes', currentSizes, { shouldDirty: true, shouldValidate: true });
+    setSizeModalOpen(false);
+  };
+
+  const handleRemoveSize = (index: number) => {
+    const currentSizes = (watch('sizes') || []).filter((_, i) => i !== index);
+    setValue('sizes', currentSizes, { shouldDirty: true, shouldValidate: true });
+  };
 
   return (
     <form
@@ -194,6 +251,76 @@ export function ProductForm({
               </p>
             ) : null}
           </div>
+
+          {/* Sizes Section */}
+          <div className="rounded-xl border border-border p-4 space-y-4 bg-background/50">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  {i18n.language === 'ar' ? 'الأحجام والأسعار (إختياري)' : 'Sizes & Pricing (Optional)'}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {i18n.language === 'ar'
+                    ? 'إضافة خيارات أحجام متعددة مع أسعار منفصلة (مثل: وسط، كبير)'
+                    : 'Add multiple size options with separate pricing (e.g. Small, Large)'}
+                </p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={openAddSizeModal}>
+                {i18n.language === 'ar' ? '+ إضافة حجم' : '+ Add Size'}
+              </Button>
+            </div>
+
+            {(watch('sizes') || []).length > 0 ? (
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full text-left text-sm" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+                  <thead className="bg-muted/60 text-xs uppercase text-muted-foreground font-semibold">
+                    <tr>
+                      <th className="px-3 py-2">{i18n.language === 'ar' ? 'الحجم' : 'Size'}</th>
+                      <th className="px-3 py-2">{i18n.language === 'ar' ? 'قبل الخصم' : 'Original Price'}</th>
+                      <th className="px-3 py-2">{i18n.language === 'ar' ? 'بعد الخصم' : 'Sale Price'}</th>
+                      <th className="px-3 py-2 text-end">{i18n.language === 'ar' ? 'إجراءات' : 'Actions'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border font-medium">
+                    {(watch('sizes') || []).map((sz, idx) => (
+                      <tr key={idx} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-3 py-2 text-foreground font-bold">{sz.name}</td>
+                        <td className="px-3 py-2 text-red-500 line-through">
+                          {formatCurrency(Number(sz.originalPrice), i18n.language)}
+                        </td>
+                        <td className="px-3 py-2 text-success">
+                          {formatCurrency(Number(sz.salePrice), i18n.language)}
+                        </td>
+                        <td className="px-3 py-2 text-end">
+                          <div className="inline-flex items-center gap-1.5 justify-end">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-primary"
+                              onClick={() => openEditSizeModal(idx)}
+                            >
+                              {i18n.language === 'ar' ? 'تعديل' : 'Edit'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                              onClick={() => handleRemoveSize(idx)}
+                            >
+                              {i18n.language === 'ar' ? 'حذف' : 'Remove'}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+
           <Input
             label={t('products.whatsNumber')}
             error={errors.whatsNumber?.message ? t('validation.phone') : undefined}
@@ -275,6 +402,53 @@ export function ProductForm({
           </div>
         </Card>
       </div>
+
+      <Modal
+        open={sizeModalOpen}
+        onClose={() => setSizeModalOpen(false)}
+        title={
+          editingSizeIndex !== null
+            ? i18n.language === 'ar' ? 'تعديل الحجم' : 'Edit Size'
+            : i18n.language === 'ar' ? 'إضافة حجم' : 'Add Size'
+        }
+        size="sm"
+      >
+        <div className="space-y-4 pt-2">
+          <Input
+            label={i18n.language === 'ar' ? 'اسم الحجم (مثل: وسط، كبير، شائعة)' : 'Size Name (e.g. Small, Medium, Large)'}
+            value={sizeForm.name}
+            onChange={(e) => setSizeForm({ ...sizeForm, name: e.target.value })}
+            placeholder={i18n.language === 'ar' ? 'كبير' : 'Large'}
+          />
+          <Input
+            label={i18n.language === 'ar' ? 'السعر قبل الخصم (السعر الأصلي)' : 'Price Before Discount (Original Price)'}
+            type="number"
+            step="0.01"
+            min="0"
+            value={sizeForm.originalPrice}
+            onChange={(e) => setSizeForm({ ...sizeForm, originalPrice: e.target.value })}
+            placeholder="250"
+          />
+          <Input
+            label={i18n.language === 'ar' ? 'السعر بعد الخصم (السعر النهائي)' : 'Price After Discount (Discounted Price)'}
+            type="number"
+            step="0.01"
+            min="0"
+            value={sizeForm.salePrice}
+            onChange={(e) => setSizeForm({ ...sizeForm, salePrice: e.target.value })}
+            placeholder="200"
+          />
+          {sizeError ? <p className="text-sm font-medium text-destructive">{sizeError}</p> : null}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setSizeModalOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="button" onClick={handleSaveSize}>
+              {i18n.language === 'ar' ? 'حفظ' : 'Save Size'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </form>
   );
 }

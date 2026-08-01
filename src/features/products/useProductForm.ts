@@ -31,6 +31,7 @@ const defaults: ProductFormValues = {
   inStock: true,
   tags: [],
   images: [],
+  sizes: [],
 };
 
 function toFormValues(product: Product): ProductFormValues {
@@ -51,6 +52,7 @@ function toFormValues(product: Product): ProductFormValues {
     inStock: product.inStock,
     tags: product.tags,
     images: product.images,
+    sizes: product.sizes || [],
   };
 }
 
@@ -100,6 +102,7 @@ export function useProductForm(product?: Product | null) {
             inStock: true,
             tags: [],
             images: [],
+            sizes: [],
           });
           pendingNewProductId = skeleton.id;
         }
