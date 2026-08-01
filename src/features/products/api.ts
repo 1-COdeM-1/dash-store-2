@@ -204,13 +204,13 @@ export async function deleteProduct(id: number): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete product');
 }
 
-export async function deleteProductFolder(folderName: string): Promise<void> {
+export async function deleteProductFolder(_folderName: string): Promise<void> {
   // Not strictly needed anymore, our backend image delete handles specific keys
 }
 
 export async function copyImagesToFolder(
   sourceUrls: string[],
-  destFolder: string,
+  _destFolder: string,
 ): Promise<string[]> {
   // In a real scenario we'd do a server-side copy via the API
   return sourceUrls;
